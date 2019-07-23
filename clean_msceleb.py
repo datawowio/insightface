@@ -43,34 +43,37 @@ if '.DS_Store' in identities:
 identities2label = {v:k for k, v in enumerate(identities)}
 
 for person_name in identities:
-    print('Processing:', person_name)
-    subdir = os.path.join(ROOT_IMAGE_DIR, person_name)
-    filenames = os.listdir(subdir)
-    img_lst = []
-    for filename in filenames:
-        image_path = os.path.join(subdir, filename)
-        img = Image.open(image_path)
-        img = img.resize((160,160))
-        img = np.asarray(img)
-        if img.shape[-1] != 3:
+    try:
+        print('Processing:', person_name)
+        subdir = os.path.join(ROOT_IMAGE_DIR, person_name)
+        filenames = os.listdir(subdir)
+        img_lst = []
+        for filename in filenames:
+            image_path = os.path.join(subdir, filename)
+            img = Image.open(image_path)
+            img = img.resize((160,160))
+            img = np.asarray(img)
+            if img.shape[-1] != 3:
+                continue
+            img = img[:,:,0:3] / 255.
+            img_lst.append(img)
+        if len(img_lst) < 2:
             continue
-        img = img[:,:,0:3] / 255.
-        img_lst.append(img)
-    if len(img_lst) < 2:
+        arr = np.stack(img_lst)
+        pred = model.predict(arr)
+
+        # count number of clusters with gap statistics
+        opt = optimalK.OptimalK()
+        n_clusters = opt(pred, cluster_array=np.arange(1, min([9, len(img_lst)])))
+        kmeans = KMeans(n_clusters=n_clusters).fit(pred)
+        biggest_cluster_ind = np.bincount(kmeans.labels_).argmax()
+        ind_not_identity = np.where(kmeans.labels_ != biggest_cluster_ind)
+
+        for i in ind_not_identity[0]:
+            fname_to_delete = os.path.join(subdir, filenames[i])
+            os.remove(fname_to_delete)
+    except:
         continue
-    arr = np.stack(img_lst)
-    pred = model.predict(arr)
-
-    # count number of clusters with gap statistics
-    opt = optimalK.OptimalK()
-    n_clusters = opt(pred, cluster_array=np.arange(1, min([9, len(img_lst)])))
-    kmeans = KMeans(n_clusters=n_clusters).fit(pred)
-    biggest_cluster_ind = np.bincount(kmeans.labels_).argmax()
-    ind_not_identity = np.where(kmeans.labels_ != biggest_cluster_ind)
-
-    for i in ind_not_identity[0]:
-        fname_to_delete = os.path.join(subdir, filenames[i])
-        os.remove(fname_to_delete)
 
 
 
