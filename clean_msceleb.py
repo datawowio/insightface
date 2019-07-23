@@ -34,8 +34,8 @@ THIS WILL REMOVE SOME DATA, SO MAKE SURE YOU HAVE A COPY OF YOUR ORIGINAL DATASE
 '''
 
 
-ROOT_IMAGE_DIR = './data/msceleb_retina_crop'
-model = models.load_model('model_data/facenet_keras.h5')
+ROOT_IMAGE_DIR = '/media/datawow/harddrive8TB/data_repo/msceleb_cropped_aligned/msceleb_retina_crop_clean'
+model = models.load_model('models/facenet_keras.h5')
 identities = os.listdir(ROOT_IMAGE_DIR)
 if '.DS_Store' in identities:
     identities.remove('.DS_Store')
@@ -56,12 +56,14 @@ for person_name in identities:
             continue
         img = img[:,:,0:3] / 255.
         img_lst.append(img)
+    if len(img_lst) < 2:
+        continue
     arr = np.stack(img_lst)
     pred = model.predict(arr)
 
     # count number of clusters with gap statistics
     opt = optimalK.OptimalK()
-    n_clusters = opt(pred, cluster_array=np.arange(1, 9))
+    n_clusters = opt(pred, cluster_array=np.arange(1, min([9, len(img_lst)])))
     kmeans = KMeans(n_clusters=n_clusters).fit(pred)
     biggest_cluster_ind = np.bincount(kmeans.labels_).argmax()
     ind_not_identity = np.where(kmeans.labels_ != biggest_cluster_ind)
